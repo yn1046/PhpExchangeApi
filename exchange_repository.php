@@ -24,7 +24,7 @@ final class ExchangeRepository
 
     public function getByApiKey($apiKey)
     {
-        $result = $this->conn->query("SELECT * FROM exchange WHERE api_key = $apiKey");
+        $result = $this->conn->query("SELECT * FROM exchange WHERE api_key = '$apiKey'");
         return $this->mapRow($result->fetch_assoc());
     }
 
@@ -56,15 +56,18 @@ final class ExchangeRepository
 
     public function remove($apiKey)
     {
-        $this->conn->query("DELETE FROM exchange WHERE api_key = $apiKey");
+        $this->conn->query("DELETE FROM exchange WHERE api_key = '$apiKey'");
+        return $this->conn->affected_rows;
     }
 
     public function applyPercentageChanges()
     {
         foreach ($this->getAll() as $exchange) {
             $newBalance = $exchange->updatePercentages($this->percentages);
-            $this->conn->query("UPDATE exchange SET balances = "
-                . json_encode($newBalance) . " WHERE api_key = " . $exchange->apiKey);
+            $newBalanceJson = $this->conn->escape_string(json_encode($newBalance));
+            $apiKey = $exchange->apiKey;
+            $this->conn->query("UPDATE exchange SET balances = '$newBalanceJson'"
+                . " WHERE api_key = '$apiKey'");
         }
     }
 
@@ -72,8 +75,8 @@ final class ExchangeRepository
     {
         $exc = new Exchange();
         $exc->apiKey = $row['api_key'];
-        $exc->balances = json_decode($row['balances']);
-        $exc->rates = json_decode($row['rates']);
+        $exc->balances = json_decode($row['balances'], true);
+        $exc->rates = json_decode($row['rates'], true);
 
         return $exc;
     }
